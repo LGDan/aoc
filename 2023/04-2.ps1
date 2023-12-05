@@ -251,21 +251,42 @@ function Invoke-Part1($textinput) {
         $runningTotal = 0
     } -Process {
         [void]$allCards.Add($_)
-        $runningTotal++
+        #$runningTotal++
         [void]$cardQ.Enqueue($_)
     } -End {
-        do {
-            $c = $cardQ.Dequeue()
-            $allCards[($c.Id)..($c.Id+$c.Score-1)]
+        # Prepare Buckets
+        $buckets = [ordered]@{}
+        1..($allCards.Count)
+        | ForEach-Object {[void]$buckets.Add($_,[System.Collections.ArrayList]::new())}
+
+        # Add base cards to buckets
+        $allCards
+        | ForEach-Object {[void]$buckets[$_.Id-1].Add($_)}
+
+        # Begin!
+        1..($allCards.Count)
+        | ForEach-Object {
+            $cardId = $_
+            $buckets.$cardId
             | ForEach-Object {
-                $cardQ.Enqueue($_)
+                $cardsWon = $_.Score
+                if ($_.Score -gt 0) {
+                    $startAt = ($_.Id)
+                    $endAt = ($_.Id+$cardsWon-1)
+                    $allCards[$startAt..$endAt]
+                    | ForEach-Object {
+                        $bucketid = $_.Id
+                        [void]($buckets.$bucketid).Add($_)
+                    }
+                }
                 $runningTotal++
             }
-        } while ($cardQ.Count -gt 0)
+        }
+        
         [PSCustomObject]@{
             RunningTotal = $runningTotal
         }
     }
 }
 
-Invoke-Part1 -textinput $testcase
+Invoke-Part1 -textinput $textinput
